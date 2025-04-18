@@ -167,27 +167,27 @@ def poll_otp():
 threading.Thread(target=poll_otp).start()
 
 elif query.data == "admin_panel" and chat_id == ADMIN_ID:
-    btns = [
-        [InlineKeyboardButton("➕ Add Country", callback_data="admin_add_country")],
-        [InlineKeyboardButton("➕ Add Service", callback_data="admin_add_service")],
-        [InlineKeyboardButton("💰 View Prices", callback_data="admin_prices")],
-    ]
-    query.edit_message_text("Admin Panel:", reply_markup=InlineKeyboardMarkup(btns))
+        btns = [
+            [InlineKeyboardButton("➕ Add Country", callback_data="admin_add_country")],
+            [InlineKeyboardButton("➕ Add Service", callback_data="admin_add_service")],
+            [InlineKeyboardButton("💰 View Prices", callback_data="admin_prices")],
+        ]
+        query.edit_message_text("Admin Panel:", reply_markup=InlineKeyboardMarkup(btns))
 
-elif query.data == "admin_add_country":
-    context.user_data["admin_action"] = "add_country"
-    query.edit_message_text("Send country in format:\n`India,india`", parse_mode='Markdown')
+    elif query.data == "admin_add_country":
+        context.user_data["admin_action"] = "add_country"
+        query.edit_message_text("Send country in format:\n`India,india`", parse_mode='Markdown')
 
-elif query.data == "admin_add_service":
-    context.user_data["admin_action"] = "add_service"
-    query.edit_message_text("Send service in format:\n`Telegram,telegram,20`", parse_mode='Markdown')
+    elif query.data == "admin_add_service":
+        context.user_data["admin_action"] = "add_service"
+        query.edit_message_text("Send service in format:\n`Telegram,telegram,20`", parse_mode='Markdown')
 
-elif query.data == "admin_prices":
-    if not SERVICE_PRICING:
-        query.edit_message_text("No services added yet.")
-        return
-    lines = [f"{srv}: ₹{info['price']} | ID: {info['id']}" for srv, info in SERVICE_PRICING.items()]
-    query.edit_message_text("Prices:\n" + "\n".join(lines))
+    elif query.data == "admin_prices":
+        if not SERVICE_PRICING:
+            query.edit_message_text("No services added yet.")
+            return
+        lines = [f"{srv}: ₹{info['price']} | ID: {info['id']}" for srv, info in SERVICE_PRICING.items()]
+        query.edit_message_text("Prices:\n" + "\n".join(lines))
 
 
 def admin_text(update: Update, context: CallbackContext):
