@@ -134,30 +134,34 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         USER_DATA[chat_id]["balance"] -= price
 save_data()
 USER_DATA[chat_id]["total_numbers"] += 1
+
 url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
-r = requests.get(url, headers=HEADERS_5SIM) 
+r = requests.get(url, headers=HEADERS_5SIM)
 if r.status_code != 200:
-            query.edit_message_text("❌ 5sim error. Try later.")
-            return
+    query.edit_message_text("❌ 5sim error. Try later.")
+    return
+
 data = r.json()
 number, id_ = data["phone"], data["id"]
-query.edit_message_text(f"✅ Number: {number}\\nWaiting for OTP...")
+query.edit_message_text(f"✅ Number: {number}\nWaiting for OTP...")
 
-        def poll_otp():
-            for _ in range(1200):
-                res = requests.get(f"https://5sim.net/v1/user/check/{id_}", headers=HEADERS_5SIM)
-                sms = res.json().get("sms")
-                if sms:
-                    otp = sms[0]["code"]
-                    context.bot.send_message(chat_id, f"✅ OTP: {otp}")
-                    requests.get(f"https://5sim.net/v1/user/finish/{id_}", headers=HEADERS_5SIM)
-                    USER_DATA[chat_id]["used_numbers"] += 1
-                    return
-                time.sleep(1)
-            context.bot.send_message(chat_id, "⏰ OTP expired.")
-            requests.get(f"https://5sim.net/v1/user/ban/{id_}", headers=HEADERS_5SIM)
+def poll_otp():
+    for _ in range(1200):
+        res = requests.get(f"https://5sim.net/v1/user/check/{id_}", headers=HEADERS_5SIM)
+        sms = res.json().get("sms")
+        if sms:
+            otp = sms[0]["code"]
+            context.bot.send_message(chat_id, f"✅ OTP: {otp}")
+            requests.get(f"https://5sim.net/v1/user/finish/{id_}", headers=HEADERS_5SIM)
+            USER_DATA[chat_id]["used_numbers"] += 1
+            save_data()
+            return
+        time.sleep(1)
 
-        threading.Thread(target=poll_otp).start()
+    context.bot.send_message(chat_id, "⏰ OTP expired.")
+    requests.get(f"https://5sim.net/v1/user/ban/{id_}", headers=HEADERS_5SIM)
+
+threading.Thread(target=poll_otp).start()
 
     elif query.data == "admin_panel" and chat_id == ADMIN_ID:
         btns = [
