@@ -99,10 +99,10 @@ Send your UTR number here.""", parse_mode='Markdown')
 
     elif query.data == "profile":
         data = USER_DATA[chat_id]
-        msg = f"👤 {data['name']} | ID: {chat_id}
+        msg = f"""👤 {data['name']} | ID: {chat_id}
 Balance: ₹{data['balance']}
 Used: {data['used_numbers']}
-Referral Wallet: ₹{data['referral_wallet']}"
+Referral Wallet: ₹{data['referral_wallet']}"""
         query.edit_message_text(msg)
 
     elif query.data == "get_otp":
