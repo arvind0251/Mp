@@ -139,9 +139,9 @@ r = requests.get(url, headers=HEADERS_5SIM)
 if r.status_code != 200:
             query.edit_message_text("❌ 5sim error. Try later.")
             return
-        data = r.json()
-        number, id_ = data["phone"], data["id"]
-        query.edit_message_text(f"✅ Number: {number}
+data = r.json()
+number, id_ = data["phone"], data["id"]
+query.edit_message_text(f"✅ Number: {number}
 Waiting for OTP...")
 
         def poll_otp():
