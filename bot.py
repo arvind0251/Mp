@@ -4,13 +4,23 @@ import json
 import requests
 import threading
 import time
+import os
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
 
-
-import os
-
 DATA_FILE = "bot_data.json"
+
+USER_DATA = {}
+SERVICE_PRICING = {}
+COUNTRIES = {}
+
+ADMIN_ID = 7459732827
+UPI_ID = "BHARATPE.8X0M0S6J8F70781@fbpe"
+QR_CODE_LINK = "https://i.ibb.co/BHS157vz/BHARATPE-QR.png"
+ACCESS_TOKEN = "75c8651095404000b35d3135e78d05fe"
+MERCHANT_ID = 53177293
+API_KEY = "a4ac091e88004e00ba43894f854a789d"
+HEADERS_5SIM = {"Authorization": f"Bearer {API_KEY}"}
 
 def save_data():
     data = {
@@ -29,18 +39,6 @@ def load_data():
             USER_DATA = data.get("USER_DATA", {})
             SERVICE_PRICING = data.get("SERVICE_PRICING", {})
             COUNTRIES = data.get("COUNTRIES", {})
-
-ADMIN_ID = 7459732827
-USER_DATA = {}
-SERVICE_PRICING = {}  # Format: {'Telegram': {'id': 'telegram', 'price': 20}}
-COUNTRIES = {}  # Format: {'India': 'india'}
-
-UPI_ID = "BHARATPE.8X0M0S6J8F70781@fbpe"
-QR_CODE_LINK = "https://i.ibb.co/BHS157vz/BHARATPE-QR.png"
-ACCESS_TOKEN = "75c8651095404000b35d3135e78d05fe"
-MERCHANT_ID = 53177293
-API_KEY = "a4ac091e88004e00ba43894f854a789d"
-HEADERS_5SIM = {"Authorization": f"Bearer {API_KEY}"}
 
 def verify_utr_with_bharatpay(utr):
     url = "https://api.bharatpe.in/v1/payment/verify"
@@ -87,9 +85,6 @@ def start(update: Update, context: CallbackContext):
     ]
     update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-
-
-
 def admin_text(update: Update, context: CallbackContext):
     if update.message.chat_id != ADMIN_ID:
         return
@@ -103,7 +98,18 @@ def admin_text(update: Update, context: CallbackContext):
             update.message.reply_text(f"✅ Country Added: {name} → {code}")
             save_data()
         except:
-            update.messagedef button_handler(update: Update, context: CallbackContext):
+            update.message.reply_text("❌ Format: India,india")
+
+    elif action == "add_service":
+        try:
+            name, sid, price = [i.strip() for i in text.split(",")]
+            SERVICE_PRICING[name] = {"id": sid, "price": int(price)}
+            update.message.reply_text(f"✅ Service Added: {name} → {sid} ₹{price}")
+            save_data()
+        except:
+            update.message.reply_text("❌ Format: Telegram,telegram,20")
+
+def button_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     chat_id = query.message.chat_id
     query.answer()
@@ -125,10 +131,7 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         if not COUNTRIES:
             query.edit_message_text("❌ No countries configured.")
             return
-        buttons = [
-            [InlineKeyboardButton(name, callback_data=f"otp_country_{key}")]
-            for name, key in COUNTRIES.items()
-        ]
+        buttons = [[InlineKeyboardButton(name, callback_data=f"otp_country_{key}")] for name, key in COUNTRIES.items()]
         query.edit_message_text("Select Country:", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif query.data.startswith("otp_country_"):
@@ -136,10 +139,7 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         if not SERVICE_PRICING:
             query.edit_message_text("❌ No services configured.")
             return
-        buttons = [
-            [InlineKeyboardButton(f"{srv} (₹{info['price']})", callback_data=f"otp_service_{srv}")]
-            for srv, info in SERVICE_PRICING.items()
-        ]
+        buttons = [[InlineKeyboardButton(f"{srv} (₹{info['price']})", callback_data=f"otp_service_{srv}")] for srv, info in SERVICE_PRICING.items()]
         query.edit_message_text("Select Service:", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif query.data.startswith("otp_service_"):
@@ -206,17 +206,7 @@ Referral Wallet: ₹{data['referral_wallet']}"""
             query.edit_message_text("No services added yet.")
             return
         lines = [f"{srv}: ₹{info['price']} | ID: {info['id']}" for srv, info in SERVICE_PRICING.items()]
-        query.edit_message_text("Prices:\n" + "\n".join(lines)).reply_text("❌ Format: India,india")
-
-    elif action == "add_service":
-        try:
-            name, sid, price = [i.strip() for i in text.split(",")]
-            SERVICE_PRICING[name] = {"id": sid, "price": int(price)}
-            update.message.reply_text(f"✅ Service Added: {name} → {sid} ₹{price}")
-            save_data()
-        except:
-            update.message.reply_text("❌ Format: Telegram,telegram,20")
-
+        query.edit_message_text("Prices:\n" + "\n".join(lines))
 
 def utr_handler(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
@@ -234,7 +224,6 @@ def utr_handler(update: Update, context: CallbackContext):
             update.message.reply_text("❌ UTR not verified.")
         context.user_data.pop("awaiting_utr", None)
 
-
 def main():
     load_data()
     updater = Updater("8120936026:AAE-LYykj7ZEGSxEaAnKq9E_wP38PVo2GJM", use_context=True)
@@ -245,7 +234,6 @@ def main():
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, admin_text))
     updater.start_polling()
     updater.idle()
-
 
 if __name__ == '__main__':
     main()
