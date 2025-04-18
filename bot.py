@@ -7,6 +7,29 @@ import time
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
 
+
+import os
+
+DATA_FILE = "bot_data.json"
+
+def save_data():
+    data = {
+        "USER_DATA": USER_DATA,
+        "SERVICE_PRICING": SERVICE_PRICING,
+        "COUNTRIES": COUNTRIES
+    }
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
+
+def load_data():
+    global USER_DATA, SERVICE_PRICING, COUNTRIES
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            USER_DATA = data.get("USER_DATA", {})
+            SERVICE_PRICING = data.get("SERVICE_PRICING", {})
+            COUNTRIES = data.get("COUNTRIES", {})
+
 ADMIN_ID = 123456789
 USER_DATA = {}
 SERVICE_PRICING = {}  # Format: {'Telegram': {'id': 'telegram', 'price': 20}}
@@ -109,6 +132,7 @@ Referral Wallet: ₹{data['referral_wallet']}"
             query.edit_message_text(f"❌ Not enough balance. ₹{price} needed.")
             return
         USER_DATA[chat_id]["balance"] -= price
+save_data()
         USER_DATA[chat_id]["total_numbers"] += 1
         url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
         r = requests.get(url, headers=HEADERS_5SIM)
@@ -174,6 +198,7 @@ def admin_text(update: Update, context: CallbackContext):
             name, code = [i.strip() for i in text.split(",")]
             COUNTRIES[name] = code
             update.message.reply_text(f"✅ Country Added: {name} → {code}")
+save_data()
         except:
             update.message.reply_text("❌ Format: India,india")
 
@@ -182,6 +207,7 @@ def admin_text(update: Update, context: CallbackContext):
             name, sid, price = [i.strip() for i in text.split(",")]
             SERVICE_PRICING[name] = {"id": sid, "price": int(price)}
             update.message.reply_text(f"✅ Service Added: {name} → {sid} ₹{price}")
+save_data()
         except:
             update.message.reply_text("❌ Format: Telegram,telegram,20")
 
@@ -201,6 +227,7 @@ def utr_handler(update: Update, context: CallbackContext):
         context.user_data.pop("awaiting_utr", None)
 
 def main():
+    load_data()
     updater = Updater("8120936026:AAE-LYykj7ZEGSxEaAnKq9E_wP38PVo2GJM", use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start, pass_args=True))
