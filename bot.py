@@ -134,58 +134,57 @@ elif query.data == "get_otp":
         USER_DATA[chat_id]["balance"] -= price
 save_data()
 USER_DATA[chat_id]["total_numbers"] += 1
+
 url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
-r = requests.get(url, headers=HEADERS_5SIM) 
+r = requests.get(url, headers=HEADERS_5SIM)
 if r.status_code != 200:
-            query.edit_message_text("❌ 5sim error. Try later.")
+    query.edit_message_text("❌ 5sim error. Try later.")
+    return
+
+data = r.json()
+number, id_ = data["phone"], data["id"]
+query.edit_message_text(f"✅ Number: {number}\nWaiting for OTP...")
+
+def poll_otp():
+    for _ in range(1200):
+        res = requests.get(f"https://5sim.net/v1/user/check/{id_}", headers=HEADERS_5SIM)
+        sms = res.json().get("sms")
+        if sms:
+            otp = sms[0]["code"]
+            context.bot.send_message(chat_id, f"✅ OTP: {otp}")
+            requests.get(f"https://5sim.net/v1/user/finish/{id_}", headers=HEADERS_5SIM)
+            USER_DATA[chat_id]["used_numbers"] += 1
+            save_data()
             return
-        data = r.json()
-        number, id_ = data["phone"], data["id"]
-        query.edit_message_text(f"✅ Number: {number}
-Waiting for OTP...")
+        time.sleep(1)
+    context.bot.send_message(chat_id, "⏰ OTP expired.")
+    requests.get(f"https://5sim.net/v1/user/ban/{id_}", headers=HEADERS_5SIM)
 
-        def poll_otp():
-            for _ in range(1200):
-                res = requests.get(f"https://5sim.net/v1/user/check/{id_}", headers=HEADERS_5SIM)
-                sms = res.json().get("sms")
-                if sms:
-                    otp = sms[0]["code"]
-                    context.bot.send_message(chat_id, f"✅ OTP: {otp}")
-                    requests.get(f"https://5sim.net/v1/user/finish/{id_}", headers=HEADERS_5SIM)
-                    USER_DATA[chat_id]["used_numbers"] += 1
-                    return
-                time.sleep(1)
-            context.bot.send_message(chat_id, "⏰ OTP expired.")
-            requests.get(f"https://5sim.net/v1/user/ban/{id_}", headers=HEADERS_5SIM)
+threading.Thread(target=poll_otp).start()
 
-        threading.Thread(target=poll_otp).start()
+elif query.data == "admin_panel" and chat_id == ADMIN_ID:
+    btns = [
+        [InlineKeyboardButton("➕ Add Country", callback_data="admin_add_country")],
+        [InlineKeyboardButton("➕ Add Service", callback_data="admin_add_service")],
+        [InlineKeyboardButton("💰 View Prices", callback_data="admin_prices")],
+    ]
+    query.edit_message_text("Admin Panel:", reply_markup=InlineKeyboardMarkup(btns))
 
-    elif query.data == "admin_panel" and chat_id == ADMIN_ID:
-        btns = [
-            [InlineKeyboardButton("➕ Add Country", callback_data="admin_add_country")],
-            [InlineKeyboardButton("➕ Add Service", callback_data="admin_add_service")],
-            [InlineKeyboardButton("💰 View Prices", callback_data="admin_prices")],
-        ]
-        query.edit_message_text("Admin Panel:", reply_markup=InlineKeyboardMarkup(btns))
+elif query.data == "admin_add_country":
+    context.user_data["admin_action"] = "add_country"
+    query.edit_message_text("Send country in format:\n`India,india`", parse_mode='Markdown')
 
-    elif query.data == "admin_add_country":
-        context.user_data["admin_action"] = "add_country"
-        query.edit_message_text("Send country in format:
-India,india")
+elif query.data == "admin_add_service":
+    context.user_data["admin_action"] = "add_service"
+    query.edit_message_text("Send service in format:\n`Telegram,telegram,20`", parse_mode='Markdown')
 
-    elif query.data == "admin_add_service":
-        context.user_data["admin_action"] = "add_service"
-        query.edit_message_text("Send service in format:
-Telegram,telegram,20")
+elif query.data == "admin_prices":
+    if not SERVICE_PRICING:
+        query.edit_message_text("No services added yet.")
+        return
+    lines = [f"{srv}: ₹{info['price']} | ID: {info['id']}" for srv, info in SERVICE_PRICING.items()]
+    query.edit_message_text("Prices:\n" + "\n".join(lines))
 
-    elif query.data == "admin_prices":
-        if not SERVICE_PRICING:
-            query.edit_message_text("No services added yet.")
-            return
-        lines = [f"{srv}: ₹{info['price']} | ID: {info['id']}" for srv, info in SERVICE_PRICING.items()]
-        query.edit_message_text("Prices:
-" + "
-".join(lines))
 
 def admin_text(update: Update, context: CallbackContext):
     if update.message.chat_id != ADMIN_ID:
@@ -193,12 +192,12 @@ def admin_text(update: Update, context: CallbackContext):
     action = context.user_data.get("admin_action")
     text = update.message.text.strip()
 
-if action == "add_country":
+    if action == "add_country":
         try:
             name, code = [i.strip() for i in text.split(",")]
             COUNTRIES[name] = code
             update.message.reply_text(f"✅ Country Added: {name} → {code}")
-save_data()
+            save_data()
         except:
             update.message.reply_text("❌ Format: India,india")
 
@@ -207,9 +206,10 @@ save_data()
             name, sid, price = [i.strip() for i in text.split(",")]
             SERVICE_PRICING[name] = {"id": sid, "price": int(price)}
             update.message.reply_text(f"✅ Service Added: {name} → {sid} ₹{price}")
-save_data()
+            save_data()
         except:
             update.message.reply_text("❌ Format: Telegram,telegram,20")
+
 
 def utr_handler(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
@@ -222,9 +222,11 @@ def utr_handler(update: Update, context: CallbackContext):
             if ref and ref in USER_DATA:
                 USER_DATA[ref]["referral_wallet"] += 0.6
             update.message.reply_text("✅ ₹20 Recharge Successful!")
+            save_data()
         else:
             update.message.reply_text("❌ UTR not verified.")
         context.user_data.pop("awaiting_utr", None)
+
 
 def main():
     load_data()
@@ -237,5 +239,6 @@ def main():
     updater.start_polling()
     updater.idle()
 
-if name == 'main':
+
+if __name__ == '__main__':
     main()
