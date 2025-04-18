@@ -30,13 +30,13 @@ def load_data():
             SERVICE_PRICING = data.get("SERVICE_PRICING", {})
             COUNTRIES = data.get("COUNTRIES", {})
 
-ADMIN_ID = 123456789
+ADMIN_ID = 7459732827
 USER_DATA = {}
 SERVICE_PRICING = {}  # Format: {'Telegram': {'id': 'telegram', 'price': 20}}
 COUNTRIES = {}  # Format: {'India': 'india'}
 
-UPI_ID = "vishalpatellll@ybl"
-QR_CODE_LINK = "https://example.com/qr.png"
+UPI_ID = "BHARATPE.8X0M0S6J8F70781@fbpe"
+QR_CODE_LINK = "https://i.ibb.co/BHS157vz/BHARATPE-QR.png"
 ACCESS_TOKEN = "75c8651095404000b35d3135e78d05fe"
 MERCHANT_ID = 53177293
 API_KEY = "a4ac091e88004e00ba43894f854a789d"
