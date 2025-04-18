@@ -109,7 +109,11 @@ elif query.data == "get_otp":
         if not COUNTRIES:
             query.edit_message_text("❌ No countries configured.")
             return
-        buttons = [[InlineKeyboardButton(name, callback_data=f"otp_country_{key}")] for name, key in COUNTRIES.items()]
+
+        buttons = [
+            [InlineKeyboardButton(name, callback_data=f"otp_country_{key}")]
+            for name, key in COUNTRIES.items()
+        ]
         query.edit_message_text("Select Country:", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif query.data.startswith("otp_country_"):
