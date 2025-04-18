@@ -141,8 +141,7 @@ if r.status_code != 200:
             return
 data = r.json()
 number, id_ = data["phone"], data["id"]
-query.edit_message_text(f"✅ Number: {number}
-Waiting for OTP...")
+query.edit_message_text(f"✅ Number: {number}\\nWaiting for OTP...")
 
         def poll_otp():
             for _ in range(1200):
