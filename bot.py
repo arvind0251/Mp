@@ -133,7 +133,7 @@ Referral Wallet: ₹{data['referral_wallet']}"""
             return
         USER_DATA[chat_id]["balance"] -= price
 save_data()
-        USER_DATA[chat_id]["total_numbers"] += 1
+USER_DATA[chat_id]["total_numbers"] += 1
         url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
         r = requests.get(url, headers=HEADERS_5SIM)
         if r.status_code != 200:
