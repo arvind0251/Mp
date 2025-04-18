@@ -105,7 +105,7 @@ Used: {data['used_numbers']}
 Referral Wallet: ₹{data['referral_wallet']}"""
         query.edit_message_text(msg)
 
-elif query.data == "get_otp":
+    elif query.data == "get_otp":
         if not COUNTRIES:
             query.edit_message_text("❌ No countries configured.")
             return
