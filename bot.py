@@ -87,7 +87,23 @@ def start(update: Update, context: CallbackContext):
     ]
     update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-def button_handler(update: Update, context: CallbackContext):
+
+
+
+def admin_text(update: Update, context: CallbackContext):
+    if update.message.chat_id != ADMIN_ID:
+        return
+    action = context.user_data.get("admin_action")
+    text = update.message.text.strip()
+
+    if action == "add_country":
+        try:
+            name, code = [i.strip() for i in text.split(",")]
+            COUNTRIES[name] = code
+            update.message.reply_text(f"✅ Country Added: {name} → {code}")
+            save_data()
+        except:
+            update.messagedef button_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     chat_id = query.message.chat_id
     query.answer()
@@ -109,7 +125,6 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         if not COUNTRIES:
             query.edit_message_text("❌ No countries configured.")
             return
-
         buttons = [
             [InlineKeyboardButton(name, callback_data=f"otp_country_{key}")]
             for name, key in COUNTRIES.items()
@@ -121,7 +136,10 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         if not SERVICE_PRICING:
             query.edit_message_text("❌ No services configured.")
             return
-        buttons = [[InlineKeyboardButton(f"{srv} (₹{info['price']})", callback_data=f"otp_service_{srv}")] for srv, info in SERVICE_PRICING.items()]
+        buttons = [
+            [InlineKeyboardButton(f"{srv} (₹{info['price']})", callback_data=f"otp_service_{srv}")]
+            for srv, info in SERVICE_PRICING.items()
+        ]
         query.edit_message_text("Select Service:", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif query.data.startswith("otp_service_"):
@@ -135,38 +153,39 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         if USER_DATA[chat_id]["balance"] < price:
             query.edit_message_text(f"❌ Not enough balance. ₹{price} needed.")
             return
+
         USER_DATA[chat_id]["balance"] -= price
-save_data()
-USER_DATA[chat_id]["total_numbers"] += 1
+        save_data()
+        USER_DATA[chat_id]["total_numbers"] += 1
 
-url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
-r = requests.get(url, headers=HEADERS_5SIM)
-if r.status_code != 200:
-    query.edit_message_text("❌ 5sim error. Try later.")
-    return
-
-data = r.json()
-number, id_ = data["phone"], data["id"]
-query.edit_message_text(f"✅ Number: {number}\nWaiting for OTP...")
-
-def poll_otp():
-    for _ in range(1200):
-        res = requests.get(f"https://5sim.net/v1/user/check/{id_}", headers=HEADERS_5SIM)
-        sms = res.json().get("sms")
-        if sms:
-            otp = sms[0]["code"]
-            context.bot.send_message(chat_id, f"✅ OTP: {otp}")
-            requests.get(f"https://5sim.net/v1/user/finish/{id_}", headers=HEADERS_5SIM)
-            USER_DATA[chat_id]["used_numbers"] += 1
-            save_data()
+        url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
+        r = requests.get(url, headers=HEADERS_5SIM)
+        if r.status_code != 200:
+            query.edit_message_text("❌ 5sim error. Try later.")
             return
-        time.sleep(1)
-    context.bot.send_message(chat_id, "⏰ OTP expired.")
-    requests.get(f"https://5sim.net/v1/user/ban/{id_}", headers=HEADERS_5SIM)
 
-threading.Thread(target=poll_otp).start()
+        data = r.json()
+        number, id_ = data["phone"], data["id"]
+        query.edit_message_text(f"✅ Number: {number}\nWaiting for OTP...")
 
-elif query.data == "admin_panel" and chat_id == ADMIN_ID:
+        def poll_otp():
+            for _ in range(1200):
+                res = requests.get(f"https://5sim.net/v1/user/check/{id_}", headers=HEADERS_5SIM)
+                sms = res.json().get("sms")
+                if sms:
+                    otp = sms[0]["code"]
+                    context.bot.send_message(chat_id, f"✅ OTP: {otp}")
+                    requests.get(f"https://5sim.net/v1/user/finish/{id_}", headers=HEADERS_5SIM)
+                    USER_DATA[chat_id]["used_numbers"] += 1
+                    save_data()
+                    return
+                time.sleep(1)
+            context.bot.send_message(chat_id, "⏰ OTP expired.")
+            requests.get(f"https://5sim.net/v1/user/ban/{id_}", headers=HEADERS_5SIM)
+
+        threading.Thread(target=poll_otp).start()
+
+    elif query.data == "admin_panel" and chat_id == ADMIN_ID:
         btns = [
             [InlineKeyboardButton("➕ Add Country", callback_data="admin_add_country")],
             [InlineKeyboardButton("➕ Add Service", callback_data="admin_add_service")],
@@ -187,23 +206,7 @@ elif query.data == "admin_panel" and chat_id == ADMIN_ID:
             query.edit_message_text("No services added yet.")
             return
         lines = [f"{srv}: ₹{info['price']} | ID: {info['id']}" for srv, info in SERVICE_PRICING.items()]
-        query.edit_message_text("Prices:\n" + "\n".join(lines))
-
-
-def admin_text(update: Update, context: CallbackContext):
-    if update.message.chat_id != ADMIN_ID:
-        return
-    action = context.user_data.get("admin_action")
-    text = update.message.text.strip()
-
-    if action == "add_country":
-        try:
-            name, code = [i.strip() for i in text.split(",")]
-            COUNTRIES[name] = code
-            update.message.reply_text(f"✅ Country Added: {name} → {code}")
-            save_data()
-        except:
-            update.message.reply_text("❌ Format: India,india")
+        query.edit_message_text("Prices:\n" + "\n".join(lines)).reply_text("❌ Format: India,india")
 
     elif action == "add_service":
         try:
