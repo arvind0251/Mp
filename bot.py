@@ -74,12 +74,11 @@ def start(update: Update, context: CallbackContext):
                 pass
 
     data = USER_DATA[chat_id]
-    text = f"""
-    👋 Hello {data['name']} !
+    text = f"""👋 Hello {data['name']} !
 
 💰 Your Balance : ₹{data['balance']:.2f} 💎
 🧾 Total Numbers Purchased : {data['total_numbers']}
-📨 Total Numbers Used : {data['used_numbers']}"
+📨 Total Numbers Used : {data['used_numbers']}"""
     keyboard = [
         [InlineKeyboardButton("🛒 Get OTP", callback_data="get_otp")],
         [InlineKeyboardButton("💳 Recharge", callback_data="recharge")],
