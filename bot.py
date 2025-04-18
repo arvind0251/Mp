@@ -134,7 +134,7 @@ Referral Wallet: ₹{data['referral_wallet']}"""
         USER_DATA[chat_id]["balance"] -= price
 save_data()
 USER_DATA[chat_id]["total_numbers"] += 1
-        url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
+url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
         r = requests.get(url, headers=HEADERS_5SIM)
         if r.status_code != 200:
             query.edit_message_text("❌ 5sim error. Try later.")
