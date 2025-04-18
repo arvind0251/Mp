@@ -94,8 +94,8 @@ def button_handler(update: Update, context: CallbackContext):
 
     if query.data == "recharge":
         context.user_data["awaiting_utr"] = True
-        query.edit_message_text(f"Pay ₹20 to UPI ID: `{UPI_ID}`
-Send your UTR number here.", parse_mode='Markdown')
+        query.edit_message_text(f"""Pay ₹20 to UPI ID: `{UPI_ID}`
+Send your UTR number here.""", parse_mode='Markdown')
 
     elif query.data == "profile":
         data = USER_DATA[chat_id]
