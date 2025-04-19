@@ -1,16 +1,9 @@
-import json
-import requests
-import threading
-import time
-import os
+import json, requests, threading, time, os
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
 
 DATA_FILE = "bot_data.json"
-
-USER_DATA = {}
-SERVICE_PRICING = {}
-COUNTRIES = {}
+USER_DATA, SERVICE_PRICING, COUNTRIES = {}, {}, {}
 
 ADMIN_ID = 7459732827
 UPI_ID = "BHARATPE.8X0M0S6J8F70781@fbpe"
@@ -54,7 +47,7 @@ def start(update: Update, context: CallbackContext):
         USER_DATA[chat_id] = {
             "name": name, "balance": 0.0, "total_recharged": 0.0,
             "total_numbers": 0, "used_numbers": 0, "refers": 0,
-            "referral_wallet": 0.0, "referred_by": None
+            "referral_wallet": 0.0, "referred_by": None, "promo_used": None
         }
         if args:
             try:
@@ -64,19 +57,20 @@ def start(update: Update, context: CallbackContext):
                     USER_DATA[ref]["refers"] += 1
             except: pass
 
-    data = USER_DATA[chat_id]
+    d = USER_DATA[chat_id]
     buttons = [
         [InlineKeyboardButton("🛒 Get OTP", callback_data="get_otp")],
         [InlineKeyboardButton("💳 Recharge", callback_data="recharge")],
         [InlineKeyboardButton("👥 Profile", callback_data="profile")],
+        [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_code")],
         [InlineKeyboardButton("🛎 Support", url=SUPPORT_URL)]
     ]
     if chat_id == ADMIN_ID:
         buttons.append([InlineKeyboardButton("🛠️ Admin Panel", callback_data="admin_panel")])
-    msg = f"""👋 Hello {data['name']} !
-💰 Balance: ₹{data['balance']:.2f}
-📦 Total Numbers: {data['total_numbers']}
-✅ Used: {data['used_numbers']}"""
+    msg = f"""👋 Hello {d['name']}!
+💰 Balance: ₹{d['balance']:.2f}
+📦 Total Numbers: {d['total_numbers']}
+✅ Used: {d['used_numbers']}"""
     update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
 
 def button_handler(update: Update, context: CallbackContext):
@@ -86,28 +80,33 @@ def button_handler(update: Update, context: CallbackContext):
 
     if query.data == "recharge":
         context.user_data["awaiting_utr"] = True
-        context.bot.send_photo(chat_id, QR_CODE_LINK, caption=f"Pay ₹20 to:\n`{UPI_ID}`\nThen send UTR here.", parse_mode="Markdown")
+        context.bot.send_photo(chat_id, QR_CODE_LINK,
+            caption=f"Pay ₹20 to:\n`{UPI_ID}`\nSend your UTR here.", parse_mode="Markdown")
 
     elif query.data == "profile":
         d = USER_DATA[chat_id]
         msg = f"""👤 {d['name']} | ID: {chat_id}
 Balance: ₹{d['balance']}
 Used: {d['used_numbers']}
-Referral Wallet: ₹{d['referral_wallet']}"""
+Referral Wallet: ₹{d['referral_wallet']}
+Refers: {d['refers']}
+Total Recharged: ₹{d['total_recharged']}"""
         query.edit_message_text(msg)
+
+    elif query.data == "promo_code":
+        context.user_data["awaiting_promo"] = True
+        query.edit_message_text("Apna promo code bheje:")
 
     elif query.data == "get_otp":
         if not COUNTRIES:
-            query.edit_message_text("❌ No countries configured.")
-            return
+            return query.edit_message_text("❌ No countries configured.")
         buttons = [[InlineKeyboardButton(name, callback_data=f"otp_country_{key}")] for name, key in COUNTRIES.items()]
         query.edit_message_text("Select Country:", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif query.data.startswith("otp_country_"):
         context.user_data["otp_country"] = query.data.replace("otp_country_", "")
         if not SERVICE_PRICING:
-            query.edit_message_text("❌ No services configured.")
-            return
+            return query.edit_message_text("❌ No services configured.")
         buttons = [[InlineKeyboardButton(f"{srv} (₹{info['price']})", callback_data=f"otp_service_{srv}")] for srv, info in SERVICE_PRICING.items()]
         query.edit_message_text("Select Service:", reply_markup=InlineKeyboardMarkup(buttons))
 
@@ -123,11 +122,9 @@ Referral Wallet: ₹{d['referral_wallet']}"""
         USER_DATA[chat_id]["total_numbers"] += 1
         save_data()
 
-        url = f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}"
-        r = requests.get(url, headers=HEADERS_5SIM)
+        r = requests.get(f"https://5sim.net/v1/user/buy/activation/any/{country}/{srv_info['id']}", headers=HEADERS_5SIM)
         if r.status_code != 200:
             return query.edit_message_text("❌ 5sim error.")
-
         data = r.json()
         number, id_ = data["phone"], data["id"]
         query.edit_message_text(f"✅ Number: {number}\nWaiting for OTP...")
@@ -163,13 +160,28 @@ Referral Wallet: ₹{d['referral_wallet']}"""
 
     elif query.data == "admin_add_service":
         context.user_data["admin_action"] = "add_service"
-        query.edit_message_text("Send service:\n`Telegram,telegram,20`", parse_mode="Markdown")
+        query.edit_message_text("Send service in format:\n`Telegram,telegram,20`", parse_mode="Markdown")
 
     elif query.data == "admin_prices":
         if not SERVICE_PRICING:
             return query.edit_message_text("No services yet.")
         lines = [f"{s}: ₹{d['price']} | ID: {d['id']}" for s, d in SERVICE_PRICING.items()]
         query.edit_message_text("Services:\n" + "\n".join(lines))
+
+def promo_code_handler(update: Update, context: CallbackContext):
+    chat_id = update.message.chat_id
+    if context.user_data.get("awaiting_promo"):
+        code = update.message.text.strip().upper()
+        if USER_DATA[chat_id].get("promo_used") == code:
+            update.message.reply_text("❌ Ye promo pehle use ho chuka.")
+        elif code == "WELCOME100":
+            USER_DATA[chat_id]["balance"] += 10
+            USER_DATA[chat_id]["promo_used"] = code
+            update.message.reply_text("✅ ₹10 added from promo code.")
+            save_data()
+        else:
+            update.message.reply_text("❌ Galat promo code.")
+        context.user_data.pop("awaiting_promo", None)
 
 def admin_text(update: Update, context: CallbackContext):
     if update.message.chat_id != ADMIN_ID: return
@@ -180,7 +192,7 @@ def admin_text(update: Update, context: CallbackContext):
         try:
             name, code = text.split(",")
             COUNTRIES[name.strip()] = code.strip()
-            update.message.reply_text(f"✅ Added: {name} → {code}")
+            update.message.reply_text(f"✅ Country Added: {name} → {code}")
             save_data()
         except:
             update.message.reply_text("❌ Format: India,india")
@@ -189,7 +201,7 @@ def admin_text(update: Update, context: CallbackContext):
         try:
             name, sid, price = [x.strip() for x in text.split(",")]
             SERVICE_PRICING[name] = {"id": sid, "price": int(price)}
-            update.message.reply_text(f"✅ Added: {name} ₹{price}")
+            update.message.reply_text(f"✅ Service Added: {name} ₹{price}")
             save_data()
         except:
             update.message.reply_text("❌ Format: Telegram,telegram,20")
@@ -204,10 +216,10 @@ def utr_handler(update: Update, context: CallbackContext):
             ref = USER_DATA[chat_id].get("referred_by")
             if ref and ref in USER_DATA:
                 USER_DATA[ref]["referral_wallet"] += 0.6
-            update.message.reply_text("✅ ₹20 Recharge Success!")
+            update.message.reply_text("✅ ₹20 Recharge Successful!")
             save_data()
         else:
-            update.message.reply_text("❌ Invalid UTR")
+            update.message.reply_text("❌ UTR not verified.")
         context.user_data.pop("awaiting_utr", None)
 
 def main():
@@ -216,10 +228,11 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start, pass_args=True))
     dp.add_handler(CallbackQueryHandler(button_handler))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, promo_code_handler))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, utr_handler))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, admin_text))
     updater.start_polling()
     updater.idle()
 
 if __name__ == "__main__":
-    main()
+    main()  
